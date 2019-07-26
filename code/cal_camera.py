@@ -63,6 +63,6 @@ if __name__ == "__main__":
     pickle_file_path = "./code/calibration.p"
     calibration = {}
     calibration["mtx"] = mtx
-    calibration["dst"] = dst
+    calibration["dist"] = dist
     with open(pickle_file_path, "wb") as pickle_file:
         pickle.dump(calibration, pickle_file)
