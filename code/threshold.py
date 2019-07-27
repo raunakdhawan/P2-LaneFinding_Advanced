@@ -25,20 +25,24 @@ def threshold_hsl(raw_image, thresh_min=100):
     # Threshold
     hsl_threshold[img_s > thresh_min] = 1
 
+    # Make the upper half black
+    hsl_threshold[:int(hsl_threshold.shape[0]/2), :] = 0
+
     return hsl_threshold
 
 if __name__ == "__main__":
-    test_img_path = "./test_images/test3.jpg"
+    test_img_path = "./test_images/test5.jpg"
     test_img = cv2.imread(test_img_path)
-
-    # Print Image size
-    print(test_img.shape)
 
     # Threshold the image
     thresholded = threshold_hsl(test_img, 60)
+    thresholded_1 = threshold_hsl(test_img, 80)
+    thresholded_2 = threshold_hsl(test_img, 100)
 
     # Show the images
-    fig, (plt1, plt2) = plt.subplots(1, 2, figsize=(20,10))
+    fig, ((plt1, plt2), (plt3, plt4)) = plt.subplots(2, 2, figsize=(20,10))
     plt1.imshow(cv2.cvtColor(test_img, cv2.COLOR_BGR2RGB))
     plt2.imshow(thresholded, cmap="gray")
+    plt3.imshow(thresholded_1, cmap="gray")
+    plt4.imshow(thresholded_2, cmap="gray")
     plt.show()
