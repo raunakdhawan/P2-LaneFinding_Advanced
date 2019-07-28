@@ -6,6 +6,7 @@ import glob
 import os.path
 import pickle
 from cal_camera import cal_camera
+from perspective_transform import perspective_transform
 
 def find_lanes(raw_image, distortion_coeff):
     '''
@@ -26,6 +27,10 @@ def find_lanes(raw_image, distortion_coeff):
                                 distortion_coeff["mtx"])
 
     # Threshold the binary image
+    
+    # Apply perspective transform
+    warped, M, M_inv = perspective_transform(undistorted)
+    
 
     return undistorted
 
