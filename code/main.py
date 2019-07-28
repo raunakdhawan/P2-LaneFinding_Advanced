@@ -8,6 +8,7 @@ import pickle
 from cal_camera import cal_camera
 from perspective_transform import perspective_transform
 from threshold import *
+from histogram_lane_pixels import *
 
 def find_lanes(raw_image, distortion_coeff):
     '''
@@ -39,19 +40,18 @@ def find_lanes(raw_image, distortion_coeff):
     # Apply perspective transform
     warped, M, M_inv = perspective_transform(hsl_or_mag)
 
-    # Get the histogram
-    def get_histogram(img):
-        return np.sum(img[img.shape[0]//2:, :], axis=0)
+    # Find lane pixels using the histogram
+    leftx, lefty, rightx, righty, out_img = find_lane_pixels(warped, nwindows=10, margin=100, minpix=100)
 
-        # Run de function over the combined warped image
-        combined_warped = warp(combined)[0]
-        histogram = get_histogram(combined_warped)
+    # Fit a polynomial using the found pixels (2nd Order)
+    left_fit = np.polyfit(lefty, leftx, 2)
+    right_fit = np.polyfit(righty, rightx, 2)
 
-        # Plot the results
-        plt.title('Histogram', fontsize=16)
-        plt.xlabel('Pixel position')
-        plt.ylabel('Counts')
-        plt.plot(histogram)
+    # Generate x and y values
+    ploty = np.linspace(0, warped.shape[0]-1, warped.shape[0])
+    left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
+    right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
+
     
     return hsl_or_mag, warped
 
@@ -84,9 +84,9 @@ if __name__ == "__main__":
     thresholded, warped = find_lanes(image, calib_param)
 
     # Show the images
-    fig, (plt1, plt2, plt3) = plt.subplots(1, 3, figsize=(20,10))
-    plt1.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    plt2.imshow(thresholded, cmap="gray")
-    plt3.imshow(warped, cmap="gray")
-    plt.show()
+    # fig, (plt1, plt2, plt3) = plt.subplots(1, 3, figsize=(20,10))
+    # plt1.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    # plt2.imshow(thresholded, cmap="gray")
+    # plt3.imshow(warped, cmap="gray")
+    # plt.show()
 
