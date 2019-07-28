@@ -70,21 +70,32 @@ def threshold_sobel(img, sobel_kernel=3, mag_thresh=(0, 255), grad_thresh=(0, np
     binary_output_grad = np.zeros_like(atan)
     binary_output_grad[(atan >= grad_thresh[0]) & (atan <= grad_thresh[1])] = 1
 
-    # Combine the binary outputs
-    binary_and = np.zeros_like(binary_output_grad)
-    binary_and[(binary_output_mag == 1) & (binary_output_grad == 1)] = 1
+    # Combine the binary outputs (Using x and grad)
+    binary_and_x_grad = np.zeros_like(binary_output_grad)
+    binary_and_x_grad[(binary_out_x_scaled == 1) & (binary_output_grad == 1)] = 1
     
-    binary_or = np.zeros_like(binary_output_grad)
-    binary_or[(binary_output_mag == 1) | (binary_output_grad == 1)] = 1
+    binary_or_x_grad = np.zeros_like(binary_output_grad)
+    binary_or_x_grad[(binary_out_x_scaled == 1) | (binary_output_grad == 1)] = 1
 
-    fig, ((plt1, plt2), (plt3, plt4)) = plt.subplots(2, 2)
-    plt1.imshow(binary_out_x_scaled, cmap="gray")
-    plt2.imshow(binary_out_y_scaled, cmap="gray")
-    plt3.imshow(binary_output_mag, cmap="gray")
-    plt4.imshow(binary_output_grad, cmap="gray")
-    plt.show()
+    # Combine the binary outputs (Using mag and grad)
+    binary_and_mag_grad = np.zeros_like(binary_output_grad)
+    binary_and_mag_grad[(binary_output_mag == 1) & (binary_output_grad == 1)] = 1
     
-    return binary_and, binary_or
+    binary_or_mag_grad = np.zeros_like(binary_output_grad)
+    binary_or_mag_grad[(binary_output_mag == 1) | (binary_output_grad == 1)] = 1
+
+    # fig, ((plt1, plt2), (plt3, plt4)) = plt.subplots(2, 2)
+    # plt1.imshow(binary_and_x_grad, cmap="gray")
+    # plt1.set_title("X, Grad, And")
+    # plt2.imshow(binary_or_x_grad, cmap="gray")
+    # plt2.set_title("X, Grad, Or")
+    # plt3.imshow(binary_and_mag_grad, cmap="gray")
+    # plt3.set_title("Mag, Grad, And")
+    # plt4.imshow(binary_or_mag_grad, cmap="gray")
+    # plt4.set_title("Mag, Grad, Or")
+    # plt.show()
+    
+    return binary_and_x_grad, binary_and_mag_grad
 
 def threshold_combined(thresholded_hsl, thresholded_sobel):
     # And
@@ -98,7 +109,7 @@ def threshold_combined(thresholded_hsl, thresholded_sobel):
     return combined_and, combined_or
 
 if __name__ == "__main__":
-    test_img_path = "./test_images/test2.jpg"
+    test_img_path = "./test_images/test6.jpg"
     test_img = cv2.imread(test_img_path)
 
     # Threshold the image (HSL)
@@ -107,18 +118,29 @@ if __name__ == "__main__":
     thresholded_hsl_100 = threshold_hsl(test_img, 100)
 
     # Threshold the image (Sobel and gradient)
-    thresholded_sobel_and, thresholded_sobel_or = threshold_sobel(test_img, 
-                                                                    sobel_kernel=3, 
-                                                                    mag_thresh=(50, 190), 
-                                                                    grad_thresh=(0.7, 1.2))
+    thresholded_sobel_and_x, thresholded_sobel_and_mag = threshold_sobel(test_img, 
+                                                                         sobel_kernel=3, 
+                                                                         mag_thresh=(50, 190), 
+                                                                         grad_thresh=(0.7, 1.2))
 
     # Combine HSL and Sobel threshold
-    combined_and, combined_or = threshold_combined(thresholded_hsl_100, thresholded_sobel_and) 
+    hsl_and_x, hsl_or_x = threshold_combined(thresholded_hsl_100, thresholded_sobel_and_x) 
+    hsl_and_mag, hsl_or_mag = threshold_combined(thresholded_hsl_100, thresholded_sobel_and_mag) 
+
+    # Stack the binaries
+    color_binary = np.dstack((np.zeros_like(thresholded_hsl_100), 
+                             thresholded_hsl_100, 
+                             thresholded_sobel_and_mag)) * 255
+
 
     # Show the images
-    # fig, ((plt1, plt2), (plt3, plt4)) = plt.subplots(2, 2, figsize=(20,10))
-    # plt1.imshow(cv2.cvtColor(test_img, cv2.COLOR_BGR2RGB))
-    # plt2.imshow(thresholded_hsl_100, cmap="gray")
-    # plt3.imshow(thresholded_sobel_and, cmap="gray")
-    # plt4.imshow(thresholded_sobel_or, cmap="gray")
-    # plt.show()
+    fig, ((plt1, plt2), (plt3, plt4)) = plt.subplots(2, 2, figsize=(20,10))
+    plt1.imshow(cv2.cvtColor(test_img, cv2.COLOR_BGR2RGB))
+    plt1.set_title("Original")
+    plt3.imshow(hsl_or_x, cmap="gray")
+    plt3.set_title("HSL or X")
+    # plt3.imshow(hsl_and_mag, cmap="gray")
+    # plt3.set_title("HSL and Mag")
+    plt4.imshow(hsl_or_mag, cmap="gray")
+    plt4.set_title("HSL or Mag")
+    plt.show()
