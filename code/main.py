@@ -29,19 +29,17 @@ def find_lanes(raw_image, distortion_coeff):
 
     # Threshold the binary image
     thresholded_hsl_100 = threshold_hsl(undistorted, 100)  # HSL Thresholding
-
     _, thresholded_sobel_and_mag = threshold_sobel(undistorted,
                                                    sobel_kernel=15, 
                                                    mag_thresh=(50, 190), 
                                                    grad_thresh=(0.7, 1.2))  # Thresholding with sobel and gradient
 
-    hsl_and_mag, _ = threshold_combined(thresholded_hsl_100, thresholded_sobel_and_mag)  # Combine thresholding
+    _, hsl_or_mag = threshold_combined(thresholded_hsl_100, thresholded_sobel_and_mag)  # Combine thresholding
 
     # Apply perspective transform
-    _, M, M_inv = perspective_transform(undistorted)
-    warped = cv2.warpPerspective(hsl_and_mag, M, (720, 1280))
+    warped, M, M_inv = perspective_transform(hsl_or_mag)
     
-    return warped
+    return hsl_or_mag, warped
 
 if __name__ == "__main__":
     # Calibration of Camera
@@ -69,11 +67,12 @@ if __name__ == "__main__":
 
     # Find Lanes
     image = cv2.imread(images[2])
-    found_lanes = find_lanes(image, calib_param)
+    thresholded, warped = find_lanes(image, calib_param)
 
     # Show the images
-    fig, (plt1, plt2) = plt.subplots(1, 2, figsize=(20,10))
+    fig, (plt1, plt2, plt3) = plt.subplots(1, 3, figsize=(20,10))
     plt1.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    plt2.imshow(cv2.cvtColor(found_lanes, cv2.COLOR_BGR2RGB))
+    plt2.imshow(thresholded, cmap="gray")
+    plt3.imshow(warped, cmap="gray")
     plt.show()
 

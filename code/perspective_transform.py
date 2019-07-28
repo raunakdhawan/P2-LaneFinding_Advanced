@@ -14,6 +14,7 @@ def perspective_transform(undistorted, src=np.float32([[100, 670], [620, 440], [
         undistorted_gray = cv2.cvtColor(undistorted, cv2.COLOR_BGR2GRAY)
     else:
         undistorted_gray = undistorted    
+        undistorted_gray = undistorted.astype(np.float32)
     img_size = undistorted.shape
 
     # Get the perspective transformation matrix
