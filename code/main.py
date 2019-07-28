@@ -38,6 +38,20 @@ def find_lanes(raw_image, distortion_coeff):
 
     # Apply perspective transform
     warped, M, M_inv = perspective_transform(hsl_or_mag)
+
+    # Get the histogram
+    def get_histogram(img):
+        return np.sum(img[img.shape[0]//2:, :], axis=0)
+
+        # Run de function over the combined warped image
+        combined_warped = warp(combined)[0]
+        histogram = get_histogram(combined_warped)
+
+        # Plot the results
+        plt.title('Histogram', fontsize=16)
+        plt.xlabel('Pixel position')
+        plt.ylabel('Counts')
+        plt.plot(histogram)
     
     return hsl_or_mag, warped
 
