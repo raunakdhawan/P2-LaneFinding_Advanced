@@ -119,7 +119,7 @@ if __name__ == "__main__":
 
     # Threshold the image (Sobel and gradient)
     thresholded_sobel_and_x, thresholded_sobel_and_mag = threshold_sobel(test_img, 
-                                                                         sobel_kernel=3, 
+                                                                         sobel_kernel=15, 
                                                                          mag_thresh=(50, 190), 
                                                                          grad_thresh=(0.7, 1.2))
 

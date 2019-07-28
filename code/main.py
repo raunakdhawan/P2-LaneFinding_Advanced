@@ -7,6 +7,7 @@ import os.path
 import pickle
 from cal_camera import cal_camera
 from perspective_transform import perspective_transform
+from threshold import *
 
 def find_lanes(raw_image, distortion_coeff):
     '''
@@ -27,12 +28,20 @@ def find_lanes(raw_image, distortion_coeff):
                                 distortion_coeff["mtx"])
 
     # Threshold the binary image
-    
-    # Apply perspective transform
-    warped, M, M_inv = perspective_transform(undistorted)
-    
+    thresholded_hsl_100 = threshold_hsl(undistorted, 100)  # HSL Thresholding
 
-    return undistorted
+    _, thresholded_sobel_and_mag = threshold_sobel(undistorted,
+                                                   sobel_kernel=15, 
+                                                   mag_thresh=(50, 190), 
+                                                   grad_thresh=(0.7, 1.2))  # Thresholding with sobel and gradient
+
+    hsl_and_mag, _ = threshold_combined(thresholded_hsl_100, thresholded_sobel_and_mag)  # Combine thresholding
+
+    # Apply perspective transform
+    M, M_inv = perspective_transform(undistorted)
+    warped = cv2.warpPerspective(hsl_and_mag, M, (720, 1280))
+    
+    return warped
 
 if __name__ == "__main__":
     # Calibration of Camera
