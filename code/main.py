@@ -9,6 +9,7 @@ from cal_camera import cal_camera
 from perspective_transform import perspective_transform
 from threshold import *
 from histogram_lane_pixels import *
+from draw_lane_lines import *
 
 def find_lanes(raw_image, distortion_coeff):
     '''
@@ -52,8 +53,17 @@ def find_lanes(raw_image, distortion_coeff):
     left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
     right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
 
+    # Find the curvature and position of the vehicle
+    ## TODO
+
+    # Plot the polynimials in the image
+
+
+    # Draw the lane lines on the raw image
+    with_lanes = draw_lane_lines(raw_image, warped, (left_fitx, ploty), (right_fitx, ploty), M_inv)
+
     
-    return hsl_or_mag, warped
+    return hsl_or_mag, warped, with_lanes
 
 if __name__ == "__main__":
     # Calibration of Camera
@@ -80,13 +90,14 @@ if __name__ == "__main__":
     images = glob.glob("./test_images/*.jpg")
 
     # Find Lanes
-    image = cv2.imread(images[2])
-    thresholded, warped = find_lanes(image, calib_param)
+    image = cv2.imread(images[1])
+    thresholded, warped, with_lanes = find_lanes(image, calib_param)
 
     # Show the images
-    # fig, (plt1, plt2, plt3) = plt.subplots(1, 3, figsize=(20,10))
-    # plt1.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    # plt2.imshow(thresholded, cmap="gray")
-    # plt3.imshow(warped, cmap="gray")
-    # plt.show()
+    fig, ((plt1, plt2), (plt3, plt4)) = plt.subplots(2, 2, figsize=(20,10))
+    plt1.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    plt2.imshow(thresholded, cmap="gray")
+    plt3.imshow(warped, cmap="gray")
+    plt4.imshow(cv2.cvtColor(with_lanes, cv2.COLOR_BGR2RGB))
+    plt.show()
 
