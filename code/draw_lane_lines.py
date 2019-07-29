@@ -8,11 +8,11 @@ def draw_lane_lines(img, warped, left_points, right_points, M):
 
     # Get the points in a format that is usable in cv2.fillPoly -> np.array([[y, x]])
     pts_left = np.array([np.transpose(np.vstack([left_points[0], left_points[1]]))])
-    pts_right = np.array([np.flipud(np.transpose(np.vstack([right_points[0], right_points[1]])))], dtype=np.int32)
+    pts_right = np.array([np.flipud(np.transpose(np.vstack([right_points[0], right_points[1]])))])
     pts = np.hstack((pts_left, pts_right))
 
     # Draw the lane onto the blank image
-    cv2.fillPoly(canvas_color, np.array( [pts], dtype=np.int32 ), (255, 0, 0))
+    cv2.fillPoly(canvas_color, np.array([pts], dtype=np.int32), (255, 0, 0))
 
     # Unwarp the image
     unwarped = cv2.warpPerspective(canvas_color, M, (img.shape[1], img.shape[0])) 
