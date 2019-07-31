@@ -41,12 +41,12 @@ def find_lanes(raw_image, distortion_coeff):
     _, hsl_or_mag = threshold_combined(thresholded_hsl_100, thresholded_sobel_and_mag)  # Combine thresholding
 
     # Apply perspective transform
-    src = np.array([[100, 670], [620, 440], [730, 440], [1100, 670]], dtype=np.float32) 
+    src = np.array([[160, 700], [550, 450], [700, 450], [1100, 700]], dtype=np.float32) 
     dst = np.array([[100, 720], [100, 0], [1280, 0], [1280, 720]], dtype=np.float32)
     warped, M, M_inv = perspective_transform(hsl_or_mag, src, dst)
 
     # Find lane pixels using the histogram
-    leftx, lefty, rightx, righty, out_img = find_lane_pixels(warped, nwindows=10, margin=100, minpix=100)
+    leftx, lefty, rightx, righty, out_img = find_lane_pixels(warped, nwindows=20, margin=100, minpix=100)
 
     # Fit a polynomial using the found pixels (2nd Order)
     left_fit = np.polyfit(lefty, leftx, 2)
@@ -135,11 +135,11 @@ if __name__ == "__main__":
             thresholded, warped, with_lanes = find_lanes(frame, calib_param)
             
             # Display the resulting frame
-            # cv2.imshow('Frame', with_lanes)
+            cv2.imshow('Frame', with_lanes)
         
             # Press Q on keyboard to  exit
-            # if cv2.waitKey(25) & 0xFF == ord('q'):
-            #     break   
+            if cv2.waitKey(25) & 0xFF == ord('q'):
+                break   
 
             # Write to the output file
             out_video.write(with_lanes)
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     
     # When everything done, release the video capture object
     video.release()
-    out_video.release()
+    # out_video.release()
     
     # Closes all the frames
     cv2.destroyAllWindows()
