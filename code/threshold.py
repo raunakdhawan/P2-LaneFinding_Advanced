@@ -4,13 +4,6 @@ from matplotlib import pyplot as plt
 
 
 def threshold_hsl(raw_image, thresh_min=100):
-    '''
-    Options for thresholding
-    1. Use HSL
-    2. Use the Sobel with gradient
-    3. Use histogram
-    4. Combine the above to create one thresholded image
-    '''
     # Gaussian Blur
     # blurred = cv2.GaussianBlur(raw_image, (3, 3), 0)
     blurred = raw_image

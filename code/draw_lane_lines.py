@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 
-def draw_lane_lines(img, warped, left_points, right_points, M):
+def color_lane(img, warped_binary, left_points, right_points, left_lane_pixels, right_lane_pixels, M):
     # Create canvas
     canvas = np.zeros((img.shape[0], img.shape[1]), dtype=img.dtype)
     canvas_color = np.dstack((canvas, canvas, canvas))  # Make it 3D for RGB
@@ -11,8 +11,10 @@ def draw_lane_lines(img, warped, left_points, right_points, M):
     pts_right = np.array([np.flipud(np.transpose(np.vstack([right_points[0], right_points[1]])))])
     pts = np.hstack((pts_left, pts_right))
 
-    # Draw the lane onto the blank image
+    # Draw and color the lane onto the blank image
     cv2.fillPoly(canvas_color, np.array([pts], dtype=np.int32), (255, 0, 0))
+    canvas_color[left_lane_pixels[1], left_lane_pixels[0]] = (0, 0, 255)
+    canvas_color[right_lane_pixels[1], right_lane_pixels[0]] = (0, 255, 0)
 
     # Unwarp the image
     unwarped = cv2.warpPerspective(canvas_color, M, (img.shape[1], img.shape[0])) 

@@ -11,6 +11,7 @@ from threshold import *
 from histogram_lane_pixels import *
 from draw_lane_lines import *
 
+
 def find_lanes(raw_image, distortion_coeff):
     '''
     This is the main function that will take the raw image as input and find the lane lines using the following pipeline
@@ -39,7 +40,15 @@ def find_lanes(raw_image, distortion_coeff):
     _, hsl_or_mag = threshold_combined(thresholded_hsl_100, thresholded_sobel_and_mag)  # Combine thresholding
 
     # Apply perspective transform
-    warped, M, M_inv = perspective_transform(hsl_or_mag)
+    src = np.array([[100, 670], [620, 440], [730, 440], [1100, 670]], dtype=np.float32) 
+    dst = np.array([[100, 720], [100, 0], [1280, 0], [1280, 720]], dtype=np.float32)
+    
+    masked_binary = np.zeros_like(hsl_or_mag)
+    cv2.fillPoly(masked_binary, np.array([src], dtype=np.int32), 255)
+    cv2.imshow("test", masked_binary)
+    cv2.waitKey(0)
+
+    warped, M, M_inv = perspective_transform(hsl_or_mag, src, dst)
 
     # Find lane pixels using the histogram
     leftx, lefty, rightx, righty, out_img = find_lane_pixels(warped, nwindows=10, margin=100, minpix=100)
@@ -56,11 +65,15 @@ def find_lanes(raw_image, distortion_coeff):
     # Find the curvature and position of the vehicle
     ## TODO
 
-    # Plot the polynimials in the image
-
 
     # Draw the lane lines on the raw image
-    with_lanes = draw_lane_lines(raw_image, warped, (left_fitx, ploty), (right_fitx, ploty), M_inv)
+    with_lanes = color_lane(raw_image, 
+                            warped, 
+                            (left_fitx, ploty), 
+                            (right_fitx, ploty), 
+                            (leftx, lefty), 
+                            (rightx, righty), 
+                            M_inv)
 
     
     return hsl_or_mag, warped, with_lanes
@@ -101,3 +114,35 @@ if __name__ == "__main__":
     plt4.imshow(cv2.cvtColor(with_lanes, cv2.COLOR_BGR2RGB))
     plt.show()
 
+    # On Video
+    video_path = "./project_video.mp4"
+    output_video_path = "output_video.mp4"
+
+    # Read the video
+    # video = cv2.VideoCapture(video_path)
+
+    # while(video.isOpened()):
+    #     # Read the frame from the video
+    #     ret, frame = video.read()
+        
+    #     if ret == True:
+    #         # Process the frame
+    #         thresholded, warped, with_lanes = find_lanes(frame, calib_param)
+            
+    #         # Display the resulting frame
+    #         cv2.imshow('Frame', with_lanes)
+        
+    #         # Press Q on keyboard to  exit
+    #         if cv2.waitKey(25) & 0xFF == ord('q'):
+    #             break   
+        
+    #     # Break the loop
+    #     else: 
+    #         print("Cannot read the video")
+    #         break
+    
+    # # When everything done, release the video capture object
+    # video.release()
+    
+    # # Closes all the frames
+    # cv2.destroyAllWindows()

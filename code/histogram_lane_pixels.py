@@ -33,11 +33,13 @@ def find_lane_pixels(binary_warped, nwindows=9, margin=100, minpix=50):
 
     # Step through the windows one by one
     for window in range(nwindows):
-        # Identify window boundaries in x and y (and right and left)
+        # Window height
         win_y_low = binary_warped.shape[0] - (window+1)*window_height
         win_y_high = binary_warped.shape[0] - window*window_height
+        # Window Left
         win_xleft_low = leftx_current - margin
         win_xleft_high = leftx_current + margin
+        # Window right
         win_xright_low = rightx_current - margin
         win_xright_high = rightx_current + margin
         
