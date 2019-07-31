@@ -13,7 +13,31 @@ from draw_lane_lines import *
 from progressbar import printProgressBar
 
 
-def find_lanes(raw_image, distortion_coeff):
+class Lane():
+    def __init__(self):
+        # was the lane detected in the last iteration?
+        self.detected = False  
+        # x values of the last n fits of the lane
+        self.recent_xfitted = [] 
+        #average x values of the fitted lane over the last n iterations
+        self.bestx = None     
+        #polynomial coefficients averaged over the last n iterations
+        self.best_fit = None  
+        #polynomial coefficients for the most recent fit
+        self.current_fit = [np.array([False])]  
+        #radius of curvature of the lane in some units
+        self.radius_of_curvature = None 
+        #distance in meters of vehicle center from the lane
+        self.lane_base_pos = None 
+        #difference in fit coefficients between last and new fits
+        self.diffs = np.array([0,0,0], dtype='float') 
+        #x values for detected lane pixels
+        self.allx = None  
+        #y values for detected lane pixels
+        self.ally = None  
+
+
+def find_lanes(raw_image, distortion_coeff, lane_left, lane_right):
     '''
     This is the main function that will take the raw image as input and find the lane lines using the following pipeline
     1. Use the distortion coefficients and apply distortion correction
@@ -45,9 +69,17 @@ def find_lanes(raw_image, distortion_coeff):
     dst = np.array([[100, 720], [100, 0], [1280, 0], [1280, 720]], dtype=np.float32)
     warped, M, M_inv = perspective_transform(hsl_or_mag, src, dst)
 
-    # Find lane pixels using the histogram
-    leftx, lefty, rightx, righty, out_img = find_lane_pixels(warped, nwindows=20, margin=100, minpix=100)
-
+    # Find Lane Pixels if thy are not already detected
+    if not left_lane.detected or not right_lane.detected:
+        # Find lane pixels using the histogram
+        leftx, lefty, rightx, righty, out_img = find_lane_pixels(warped, nwindows=20, margin=100, minpix=100)
+    # If detected then, find lane pixels in the region already found with margin
+    else:
+        leftx, lefty, rightx, righty, out_img = search_around_poly(warped, 
+                                                                   lane_left.current_fit, 
+                                                                   lane_right.current_fit, 
+                                                                   100)
+    # leftx, lefty, rightx, righty, out_img = find_lane_pixels(warped, nwindows=20, margin=100, minpix=100) 
     # Fit a polynomial using the found pixels (2nd Order)
     left_fit = np.polyfit(lefty, leftx, 2)
     right_fit = np.polyfit(righty, rightx, 2)
@@ -56,6 +88,12 @@ def find_lanes(raw_image, distortion_coeff):
     ploty = np.linspace(0, warped.shape[0]-1, warped.shape[0])
     left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
     right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
+
+    # Fill the values in the lane_left and lane_right class
+    lane_left.current_fit = left_fit
+    lane_right.current_fit = right_fit
+    lane_left.detected = True
+    lane_right.detected = True
 
     # Find the curvature and position of the vehicle
     ## TODO
@@ -97,9 +135,13 @@ if __name__ == "__main__":
     # Load Images
     images = glob.glob("./test_images/*.jpg")
 
+    # Initialize the left and right lane
+    left_lane = Lane()
+    right_lane = Lane()
+
     # Find Lanes
     image = cv2.imread(images[1])
-    thresholded, warped, with_lanes = find_lanes(image, calib_param)
+    thresholded, warped, with_lanes = find_lanes(image, calib_param, left_lane, right_lane)
 
     # Show the images
     # fig, ((plt1, plt2), (plt3, plt4)) = plt.subplots(2, 2, figsize=(20,10))
@@ -111,6 +153,7 @@ if __name__ == "__main__":
 
     # On Video
     video_path = "./project_video.mp4"
+    # video_path = "./challenge_video.mp4"
     output_video_path = "./output_video.avi"
 
     # Read the video
@@ -121,10 +164,10 @@ if __name__ == "__main__":
     height = int(video.get(4))
     fps = video.get(cv2.CAP_PROP_FPS)
     length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    out_video = cv2.VideoWriter(output_video_path, 
-                                cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 
-                                fps, 
-                                (width,height))
+    # out_video = cv2.VideoWriter(output_video_path, 
+    #                             cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 
+    #                             fps, 
+    #                             (width,height))
     frame_number = 0
     while(video.isOpened()):
         # Read the frame from the video
@@ -132,7 +175,7 @@ if __name__ == "__main__":
         
         if ret == True:
             # Process the frame
-            thresholded, warped, with_lanes = find_lanes(frame, calib_param)
+            thresholded, warped, with_lanes = find_lanes(frame, calib_param, left_lane, right_lane)
             
             # Display the resulting frame
             cv2.imshow('Frame', with_lanes)
@@ -142,7 +185,7 @@ if __name__ == "__main__":
                 break   
 
             # Write to the output file
-            out_video.write(with_lanes)
+            # out_video.write(with_lanes)
             
             # Print output numberf for user
             frame_number += 1
