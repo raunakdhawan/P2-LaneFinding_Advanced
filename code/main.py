@@ -10,6 +10,7 @@ from perspective_transform import perspective_transform
 from threshold import *
 from histogram_lane_pixels import *
 from draw_lane_lines import *
+from progressbar import printProgressBar
 
 
 def find_lanes(raw_image, distortion_coeff):
@@ -42,12 +43,6 @@ def find_lanes(raw_image, distortion_coeff):
     # Apply perspective transform
     src = np.array([[100, 670], [620, 440], [730, 440], [1100, 670]], dtype=np.float32) 
     dst = np.array([[100, 720], [100, 0], [1280, 0], [1280, 720]], dtype=np.float32)
-    
-    masked_binary = np.zeros_like(hsl_or_mag)
-    cv2.fillPoly(masked_binary, np.array([src], dtype=np.int32), 255)
-    cv2.imshow("test", masked_binary)
-    cv2.waitKey(0)
-
     warped, M, M_inv = perspective_transform(hsl_or_mag, src, dst)
 
     # Find lane pixels using the histogram
@@ -107,42 +102,60 @@ if __name__ == "__main__":
     thresholded, warped, with_lanes = find_lanes(image, calib_param)
 
     # Show the images
-    fig, ((plt1, plt2), (plt3, plt4)) = plt.subplots(2, 2, figsize=(20,10))
-    plt1.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    plt2.imshow(thresholded, cmap="gray")
-    plt3.imshow(warped, cmap="gray")
-    plt4.imshow(cv2.cvtColor(with_lanes, cv2.COLOR_BGR2RGB))
-    plt.show()
+    # fig, ((plt1, plt2), (plt3, plt4)) = plt.subplots(2, 2, figsize=(20,10))
+    # plt1.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    # plt2.imshow(thresholded, cmap="gray")
+    # plt3.imshow(warped, cmap="gray")
+    # plt4.imshow(cv2.cvtColor(with_lanes, cv2.COLOR_BGR2RGB))
+    # plt.show()
 
     # On Video
     video_path = "./project_video.mp4"
-    output_video_path = "output_video.mp4"
+    output_video_path = "./output_video.avi"
 
     # Read the video
-    # video = cv2.VideoCapture(video_path)
+    video = cv2.VideoCapture(video_path)
 
-    # while(video.isOpened()):
-    #     # Read the frame from the video
-    #     ret, frame = video.read()
+    # Video writer
+    width = int(video.get(3))
+    height = int(video.get(4))
+    fps = video.get(cv2.CAP_PROP_FPS)
+    length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    out_video = cv2.VideoWriter(output_video_path, 
+                                cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 
+                                fps, 
+                                (width,height))
+    frame_number = 0
+    while(video.isOpened()):
+        # Read the frame from the video
+        ret, frame = video.read()
         
-    #     if ret == True:
-    #         # Process the frame
-    #         thresholded, warped, with_lanes = find_lanes(frame, calib_param)
+        if ret == True:
+            # Process the frame
+            thresholded, warped, with_lanes = find_lanes(frame, calib_param)
             
-    #         # Display the resulting frame
-    #         cv2.imshow('Frame', with_lanes)
+            # Display the resulting frame
+            # cv2.imshow('Frame', with_lanes)
         
-    #         # Press Q on keyboard to  exit
-    #         if cv2.waitKey(25) & 0xFF == ord('q'):
-    #             break   
+            # Press Q on keyboard to  exit
+            # if cv2.waitKey(25) & 0xFF == ord('q'):
+            #     break   
+
+            # Write to the output file
+            out_video.write(with_lanes)
+            
+            # Print output numberf for user
+            frame_number += 1
+            printProgressBar(frame_number, length, "Progress", length=50)
         
-    #     # Break the loop
-    #     else: 
-    #         print("Cannot read the video")
-    #         break
+        # Break the loop
+        else: 
+            print("Cannot read the video")
+            break
     
-    # # When everything done, release the video capture object
-    # video.release()
+    # When everything done, release the video capture object
+    video.release()
+    out_video.release()
     
-    # # Closes all the frames
-    # cv2.destroyAllWindows()
+    # Closes all the frames
+    cv2.destroyAllWindows()
