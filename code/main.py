@@ -13,30 +13,6 @@ from draw_lane_lines import *
 from progressbar import printProgressBar
 
 
-class Lane():
-    def __init__(self):
-        # was the lane detected in the last iteration?
-        self.detected = False  
-        # x values of the last n fits of the lane
-        self.recent_xfitted = [] 
-        #average x values of the fitted lane over the last n iterations
-        self.bestx = None     
-        #polynomial coefficients averaged over the last n iterations
-        self.best_fit = None  
-        #polynomial coefficients for the most recent fit
-        self.current_fit = [np.array([False])]  
-        #radius of curvature of the lane in some units
-        self.radius_of_curvature = None 
-        #distance in meters of vehicle center from the lane
-        self.lane_base_pos = None 
-        #difference in fit coefficients between last and new fits
-        self.diffs = np.array([0,0,0], dtype='float') 
-        #x values for detected lane pixels
-        self.allx = None  
-        #y values for detected lane pixels
-        self.ally = None  
-
-
 def find_lanes(raw_image, distortion_coeff, lane_left, lane_right):
     '''
     This is the main function that will take the raw image as input and find the lane lines using the following pipeline
@@ -65,7 +41,7 @@ def find_lanes(raw_image, distortion_coeff, lane_left, lane_right):
     _, hsl_or_mag = threshold_combined(thresholded_hsl_100, thresholded_sobel_and_mag)  # Combine thresholding
 
     # Apply perspective transform
-    src = np.array([[160, 700], [550, 450], [700, 450], [1200, 700]], dtype=np.float32) 
+    src = np.array([[160, 700], [550, 450], [750, 450], [1200, 700]], dtype=np.float32) 
     dst = np.array([[100, 720], [100, 0], [1280, 0], [1280, 720]], dtype=np.float32)
     warped, M, M_inv = perspective_transform(hsl_or_mag, src, dst)
 
@@ -87,9 +63,18 @@ def find_lanes(raw_image, distortion_coeff, lane_left, lane_right):
     lane_left.detected = True
     lane_right.detected = True
 
-    # Find the curvature and position of the vehicle
-    ## TODO
+    # Conversion variables
+    ym_per_pix = 30/720
+    xm_per_pix = 3.7/700
 
+    # Find the curvature and position of the vehicle
+    y_eval = np.max(ploty)
+    left_curverad = ((1 + (2*left_fit[0]*y_eval*ym_per_pix + left_fit[1])**2)**1.5)/np.absolute(2*left_fit[0])
+    right_curverad = ((1 + (2*right_fit[0]*y_eval*ym_per_pix + right_fit[1])**2)**1.5)/np.absolute(2*right_fit[0])
+
+    # Find the offset
+    offset = (raw_image.shape[1]//2 - (left_fitx[-1] + right_fitx[-1])/2)*xm_per_pix
+    
 
     # Draw the lane lines on the raw image
     with_lanes = color_lane(raw_image, 
@@ -100,8 +85,32 @@ def find_lanes(raw_image, distortion_coeff, lane_left, lane_right):
                             (rightx, righty), 
                             M_inv)
 
+    # Write text on the image
+    with_lanes_text = with_lanes.copy()
+    cv2.putText(with_lanes_text, 
+                "Curvature (Left Lane): {:.2f} m".format(left_curverad), 
+                (10, 30), 
+                cv2.FONT_HERSHEY_SIMPLEX, 
+                1.0, 
+                (255,255,255), 
+                2)
+    cv2.putText(with_lanes_text, 
+                "Curvature (Right Lane): {:.2f} m".format(right_curverad),
+                (10, 60), 
+                cv2.FONT_HERSHEY_SIMPLEX, 
+                1., 
+                (255,255,255), 
+                2)
+    cv2.putText(with_lanes_text, 
+                    "Car Offset : {:.2f} m".format(offset),
+                    (10, 90), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 
+                    1., 
+                    (255,255,255), 
+                    2)
+
     
-    return hsl_or_mag, warped, with_lanes
+    return hsl_or_mag, warped, with_lanes_text
 
 if __name__ == "__main__":
     # Calibration of Camera
@@ -146,7 +155,7 @@ if __name__ == "__main__":
     # On Video
     video_path = "./project_video.mp4"
     # video_path = "./challenge_video.mp4"
-    output_video_path = "./output_video.avi"
+    output_video_path = "./output_video_2.avi"
 
     # Read the video
     video = cv2.VideoCapture(video_path)
