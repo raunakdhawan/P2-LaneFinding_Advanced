@@ -65,21 +65,13 @@ def find_lanes(raw_image, distortion_coeff, lane_left, lane_right):
     _, hsl_or_mag = threshold_combined(thresholded_hsl_100, thresholded_sobel_and_mag)  # Combine thresholding
 
     # Apply perspective transform
-    src = np.array([[160, 700], [550, 450], [700, 450], [1100, 700]], dtype=np.float32) 
+    src = np.array([[160, 700], [550, 450], [700, 450], [1200, 700]], dtype=np.float32) 
     dst = np.array([[100, 720], [100, 0], [1280, 0], [1280, 720]], dtype=np.float32)
     warped, M, M_inv = perspective_transform(hsl_or_mag, src, dst)
 
     # Find Lane Pixels if thy are not already detected
-    if not left_lane.detected or not right_lane.detected:
-        # Find lane pixels using the histogram
-        leftx, lefty, rightx, righty, out_img = find_lane_pixels(warped, nwindows=20, margin=100, minpix=100)
-    # If detected then, find lane pixels in the region already found with margin
-    else:
-        leftx, lefty, rightx, righty, out_img = search_around_poly(warped, 
-                                                                   lane_left.current_fit, 
-                                                                   lane_right.current_fit, 
-                                                                   100)
-    # leftx, lefty, rightx, righty, out_img = find_lane_pixels(warped, nwindows=20, margin=100, minpix=100) 
+    leftx, lefty, rightx, righty, out_img = find_lane_pixels(warped, nwindows=10, margin=100, minpix=100) 
+
     # Fit a polynomial using the found pixels (2nd Order)
     left_fit = np.polyfit(lefty, leftx, 2)
     right_fit = np.polyfit(righty, rightx, 2)
@@ -164,10 +156,10 @@ if __name__ == "__main__":
     height = int(video.get(4))
     fps = video.get(cv2.CAP_PROP_FPS)
     length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    # out_video = cv2.VideoWriter(output_video_path, 
-    #                             cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 
-    #                             fps, 
-    #                             (width,height))
+    out_video = cv2.VideoWriter(output_video_path, 
+                                cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 
+                                fps, 
+                                (width,height))
     frame_number = 0
     while(video.isOpened()):
         # Read the frame from the video
@@ -185,7 +177,7 @@ if __name__ == "__main__":
                 break   
 
             # Write to the output file
-            # out_video.write(with_lanes)
+            out_video.write(with_lanes)
             
             # Print output numberf for user
             frame_number += 1
@@ -198,7 +190,7 @@ if __name__ == "__main__":
     
     # When everything done, release the video capture object
     video.release()
-    # out_video.release()
+    out_video.release()
     
     # Closes all the frames
     cv2.destroyAllWindows()
