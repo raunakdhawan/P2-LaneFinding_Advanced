@@ -12,8 +12,31 @@ from histogram_lane_pixels import *
 from draw_lane_lines import *
 from progressbar import printProgressBar
 
+class Line():
+    def __init__(self):
+        # was the line detected in the last iteration?
+        self.detected = False  
+        # x values of the last n fits of the line
+        self.recent_xfitted = [] 
+        #average x values of the fitted line over the last n iterations
+        self.bestx = None     
+        #polynomial coefficients averaged over the last n iterations
+        self.best_fit = None  
+        #polynomial coefficients for the most recent fit
+        self.current_fit = [np.array([False])]  
+        #radius of curvature of the line in some units
+        self.radius_of_curvature = None 
+        #distance in meters of vehicle center from the line
+        self.line_base_pos = None 
+        #difference in fit coefficients between last and new fits
+        self.diffs = np.array([0,0,0], dtype='float') 
+        #x values for detected line pixels
+        self.allx = None  
+        #y values for detected line pixels
+        self.ally = None  
 
-def find_lanes(raw_image, distortion_coeff, lane_left, lane_right):
+
+def find_lanes(raw_image, distortion_coeff):
     '''
     This is the main function that will take the raw image as input and find the lane lines using the following pipeline
     1. Use the distortion coefficients and apply distortion correction
@@ -56,12 +79,6 @@ def find_lanes(raw_image, distortion_coeff, lane_left, lane_right):
     ploty = np.linspace(0, warped.shape[0]-1, warped.shape[0])
     left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
     right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
-
-    # Fill the values in the lane_left and lane_right class
-    lane_left.current_fit = left_fit
-    lane_right.current_fit = right_fit
-    lane_left.detected = True
-    lane_right.detected = True
 
     # Conversion variables
     ym_per_pix = 30/720
@@ -136,13 +153,9 @@ if __name__ == "__main__":
     # Load Images
     images = glob.glob("./test_images/*.jpg")
 
-    # Initialize the left and right lane
-    left_lane = Lane()
-    right_lane = Lane()
-
     # Find Lanes
-    image = cv2.imread(images[1])
-    thresholded, warped, with_lanes = find_lanes(image, calib_param, left_lane, right_lane)
+    image = cv2.imread(images[4])
+    thresholded, warped, with_lanes = find_lanes(image, calib_param)
 
     # Show the images
     # fig, ((plt1, plt2), (plt3, plt4)) = plt.subplots(2, 2, figsize=(20,10))
@@ -176,7 +189,7 @@ if __name__ == "__main__":
         
         if ret == True:
             # Process the frame
-            thresholded, warped, with_lanes = find_lanes(frame, calib_param, left_lane, right_lane)
+            thresholded, warped, with_lanes = find_lanes(frame, calib_param)
             
             # Display the resulting frame
             cv2.imshow('Frame', with_lanes)

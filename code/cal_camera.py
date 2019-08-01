@@ -52,11 +52,17 @@ if __name__ == "__main__":
     img = cv2.imread("./camera_cal/calibration1.jpg")
     dst = cv2.undistort(img, mtx, dist, None, mtx)
 
-    f, (ax1, ax2) = plt.subplots(1, 2, figsize=(20,10))
+    ret, corners = cv2.findChessboardCorners(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), (9, 5), None)
+
+    f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(20,10))
     ax1.imshow(img)
     ax1.set_title('Original Image', fontsize=30)
-    ax2.imshow(dst)
-    ax2.set_title('Undistorted Image', fontsize=30)
+    ax2.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), cmap="gray")
+    ax2.set_title("Gray Scale", fontsize=30)
+    ax3.imshow(cv2.drawChessboardCorners(img, (9, 5),corners, True))
+    ax3.set_title("Corners found", fontsize=30)
+    ax4.imshow(dst)
+    ax4.set_title('Undistorted Image', fontsize=30)
     plt.show()
 
     # Pickle the results

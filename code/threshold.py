@@ -18,8 +18,8 @@ def threshold_hsl(raw_image, thresh_min=100):
     # Threshold
     hsl_threshold[img_s > thresh_min] = 1
 
-    # Make the upper half black
-    hsl_threshold[:int(hsl_threshold.shape[0]/2), :] = 0
+    # # Make the upper half black
+    # hsl_threshold[:int(hsl_threshold.shape[0]/2), :] = 0
 
     return hsl_threshold
 
@@ -129,11 +129,13 @@ if __name__ == "__main__":
     # Show the images
     fig, ((plt1, plt2), (plt3, plt4)) = plt.subplots(2, 2, figsize=(20,10))
     plt1.imshow(cv2.cvtColor(test_img, cv2.COLOR_BGR2RGB))
-    plt1.set_title("Original")
-    plt3.imshow(hsl_or_x, cmap="gray")
-    plt3.set_title("HSL or X")
-    # plt3.imshow(hsl_and_mag, cmap="gray")
-    # plt3.set_title("HSL and Mag")
+    plt1.set_title("Original", fontsize=30)
+    plt2.imshow(thresholded_hsl_100, cmap="gray")
+    plt2.set_title("Saturation Thresholded", fontsize=30)
+    plt3.imshow(thresholded_sobel_and_mag, cmap="gray")
+    plt3.set_title("Sobel Thresholded", fontsize=30)
+    # plt4.imshow(hsl_and_mag, cmap="gray")
+    # plt4.set_title("HSL and Mag")
     plt4.imshow(hsl_or_mag, cmap="gray")
-    plt4.set_title("HSL or Mag")
+    plt4.set_title("Combined Thresholding", fontsize=30)
     plt.show()

@@ -5,7 +5,7 @@ import cv2
 
 def find_lane_pixels(binary_warped, nwindows=9, margin=100, minpix=50):
     # Histogram
-    histogram = np.sum(binary_warped[binary_warped.shape[0]//2:,:], axis=0)
+    histogram = np.sum(binary_warped[binary_warped.shape[0]*3//4:,:], axis=0)
 
     # Output Image
     out_img = np.dstack((binary_warped, binary_warped, binary_warped))
