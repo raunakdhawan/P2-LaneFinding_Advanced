@@ -66,6 +66,7 @@ The code for thresholding is written in the file `./code/threshold.py`. In the f
    
    An example of Saturation based thresholding is shown in the image below. **The minimum value of Saturation for thresholding is chosen as 100 for lane detection.**
    ![Saturation Thresholded](output_images/hsl_thresholded.png)
+
 2. `threshold_sobel(<image>, <sobel kernel size>, <magnitude threshold (min, max)>, <gradient threshold (min, max)>)`
     - The image is converted to gray scale color space
     - The sobel gradients in x and y direction are calculated, and also the absolute values of the gradients are calculated.
@@ -78,6 +79,7 @@ The code for thresholding is written in the file `./code/threshold.py`. In the f
     - The canvas is returned.
     An example of the thresholded edge detection is shown below. **For the lane detection the kernel size is set to 15, the range for magnitude thresholding is set to 50-190 and for the gradient thresholding is set to 0.7-1.2.**
     ![Sobel Thresholded](output_images/sobel_thresholded.png)
+    
 3. `threshold_combined(<hsl thresholded>, <sobel thresholded>)`
     - The Saturation thresholded image and the Sobel thresholded image is passed on to this function to caluclate the combined thresholding.
     - A blank canvas is created of the same size of the image with one channel.
@@ -188,6 +190,8 @@ But in order to do that, the video needs to be loaded and a loop needs to be cre
 3. Start the loop over every frame of the video
     - Read the frame using the method of the video class `video.read()`
     - Call the function `find_lanes()`. Within this the entire pipeline for lane detection is coded. The funciton is in the `./code/main.py` file.
+
+Path to the resulting video : [Output Video](./output_video.mp4)
 
 ## Discussion
 ### Problems faced
