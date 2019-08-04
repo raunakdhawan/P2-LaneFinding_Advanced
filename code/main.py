@@ -107,7 +107,8 @@ def find_lanes(raw_image, distortion_coeff, lane):
     lane.offset = (raw_image.shape[1]//2 - (left_fitx[-1] + right_fitx[-1])/2)*xm_per_pix
 
     # Sanity check
-    lane = sanity_check(frame, lane, M_inv)
+    print(lane.left_poly)
+    lane = sanity_check(raw_image, lane, M_inv)
 
     return lane
 
@@ -132,30 +133,20 @@ if __name__ == "__main__":
         calib_param["dist"] = dist
 
 
-    # # Load Images
-    # # images = glob.glob("./test_images/*.jpg")
-    # images = "./test_images/FromVideo.png"
+    # Load Images
+    images = glob.glob("./test_images/*.jpg")
 
-    # # Find Lanes
-    # lane = Lane()
-    # # image = cv2.imread(images[4])
-    # image = cv2.imread(images)
-    # image = cv2.resize(image, (1280, 720))
-    # lane.left_poly_pts, \
-    #     lane.right_poly_pts, \
-    #         (lane.left_curve_rad, lane.right_curve_rad), \
-    #             lane.offset, \
-    #                 M_inv, \
-    #                     lane.warped_binary = find_lanes(image, calib_param)
-
-    # # Sanity check
-    # sanity_check(lane, M_inv)
+    # Find Lanes
+    lane = Lane()
+    image = cv2.imread(images[4])
+    image = cv2.resize(image, (1280, 720))
+    lane = find_lanes(image, calib_param, lane)
 
     # Show the images
-    # fig, (plt1, plt2) = plt.subplots(1, 2, figsize=(20,10))
-    # plt1.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    # plt2.imshow(cv2.cvtColor(lane.detected_lane_img, cv2.COLOR_BGR2RGB))
-    # plt.show()
+    fig, (plt1, plt2) = plt.subplots(1, 2, figsize=(20,10))
+    plt1.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    plt2.imshow(cv2.cvtColor(lane.detected_lane_img, cv2.COLOR_BGR2RGB))
+    plt.show()
 
     # On Video
     video_path = "./project_video.mp4"

@@ -6,22 +6,40 @@ Separate to the main function, another function `cal_camera` is written in the f
 
 This write up includes the following topics
 - [**Advanced Lane Finding**](#advanced-lane-finding)
+  - [Defintion of Lane Class](#defintion-of-lane-class)
   - [Camera Calibration](#camera-calibration)
   - [Pipeline (single images)](#pipeline-single-images)
     - [1. Calibration of the camera](#1-calibration-of-the-camera)
     - [2. Thresholding the undistorted image](#2-thresholding-the-undistorted-image)
     - [3. Perspective Transform](#3-perspective-transform)
     - [4. Finding the Lane Pixels](#4-finding-the-lane-pixels)
+      - [`find_lane_pixels()`](#findlanepixels)
+      - [`search_around_poly()`](#searcharoundpoly)
     - [5. Fitting a polynomial](#5-fitting-a-polynomial)
     - [6. Calculating the offset of the vehicle (w.r.t Center of the Image) and the curvature of the lane](#6-calculating-the-offset-of-the-vehicle-wrt-center-of-the-image-and-the-curvature-of-the-lane)
-    - [7. Plot the lane lines](#7-plot-the-lane-lines)
-    - [8. Add the curvature and offset to the image](#8-add-the-curvature-and-offset-to-the-image)
+    - [7. Sanity Check](#7-sanity-check)
+    - [8. Draw the lane lines](#8-draw-the-lane-lines)
   - [Pipeline (video)](#pipeline-video)
   - [Discussion](#discussion)
     - [Problems faced](#problems-faced)
     - [Places which can be imporved](#places-which-can-be-imporved)
 
-
+## Defintion of Lane Class
+All the detections (for left and right lane) and calculated variables are stored in the lane class. The lane class has the following variables
+- `detected` : will be set to true if the detected lane passed the sanity check
+- `left_poly_pts` : will contain the points calculated with the fitted polynomial for the left lane
+- `right_poly_pts` : will contain the points calculated with the filled polynomial for the right lane
+- `left_poly` : contains the coefficients for the fitted polynomial for left lane
+- `right_poly` : contains the coefficients for the fitted polynomial for the right lane
+- `left_curve_rad` : contains the curvature radius for the left lane
+- `right_curve_rad` : contains the curveature radius for the right lane
+- `offset` : contains the offset of the vehicle from the center
+- `detected_lane_img` : contains the image where the lane is drawn with the polygon and also the text is added
+- `warped_binary` : contains the warped, thresholded binary image
+- `left_poly_pts_previous` : contains the previous points calculated with the fitted polynomial for the left lane
+- `right_poly_pts_previous` : contains the previous points calculated with the fitted polynomial for the right lane
+- `left_poly_previous` : contains the previous coefficients for the fitted polynomial for left lane
+- `right_poly_previous` : contains the previous coefficients for the fitted polynomial for right lane
 
 ## Camera Calibration
 - File - *./code/cal_camera.py*
@@ -64,7 +82,7 @@ The code for thresholding is written in the file `./code/threshold.py`. In the f
    - The areas of the image where the **Saturation** channel is greater than the minimum threshold provided in the function is set to one.
    - The thresholded image is returned.
    
-   An example of Saturation based thresholding is shown in the image below. **The minimum value of Saturation for thresholding is chosen as 100 for lane detection.**
+   An example of Saturation based thresholding is shown in the image below. **The minimum value of Saturation for thresholding is chosen as 150 for lane detection.**
    ![Saturation Thresholded](output_images/hsl_thresholded.png)
 
 2. `threshold_sobel(<image>, <sobel kernel size>, <magnitude threshold (min, max)>, <gradient threshold (min, max)>)`
@@ -77,7 +95,7 @@ The code for thresholding is written in the file `./code/threshold.py`. In the f
     - Direction of the gradient is also thresholded. The coordinates with values between the max and min of the gradient threshold are set to 1 in a blank canvas and rest are set to 0.
     - A new canvas is created where all the values are set to 0. In this canvas the values at those coordinates is set to 1, where the value of thresholded magnitude and thresholded direction of gradient is 1. Basically a bitwise and between the thresholded magnitude and thresholded gradient.
     - The canvas is returned.
-    An example of the thresholded edge detection is shown below. **For the lane detection the kernel size is set to 15, the range for magnitude thresholding is set to 50-190 and for the gradient thresholding is set to 0.7-1.2.**
+    An example of the thresholded edge detection is shown below. **For the lane detection the kernel size is set to 7, the range for magnitude thresholding is set to 50-190 and for the gradient thresholding is set to 0.7-1.2.**
     ![Sobel Thresholded](output_images/sobel_thresholded.png)
     
 3. `threshold_combined(<hsl thresholded>, <sobel thresholded>)`
@@ -107,11 +125,12 @@ These coordinates were tested on a test image, the result with the original imag
 ### 4. Finding the Lane Pixels
 The next step in the pipeline is to find the coordinates of the lane pixels in the warped image. The code for finding the lane pixels is written in `./code/histogram_lane_pixels.py`. The file contains two functions
 - `find_lane_pixels(<warped binary image>, <number of windows>, <margin>, <minimum number of pixels>)`
-- `search_around_poly(<warped binary image>, <coordinates for left fit>, <coordinates for right fit>, <margin>)`
+- `search_around_poly(<warped binary image>, <coefficients for left fit>, <coefficients for right fit>, <margin>)`
 
-For the current implementation, only the first function is used as it is giving acceptable resutls in the Project Video. For the challenging videos, the second has to be used to find the pixels more accurately.
+The first function is called when the previously detected lanes do not pass the sanity check. The second function is called when the previous detected lanes do pass the sanity check. 
 
-To find the lane pixels the following steps are taken (coded in the function `find_lane_pixels()`)
+#### `find_lane_pixels()`
+To find the lane pixels, when previous detected lane was False, the following steps are taken (coded in the function `find_lane_pixels()`)
 1. Create a histogram of the bottom 1/4th of the binary warped image. As shown in the image below
     ![Histogram](output_images/histogram.png)
 2. Create an output image, to be modified later, by stacking the binary warped image.
@@ -126,10 +145,18 @@ To find the lane pixels the following steps are taken (coded in the function `fi
     - Draw the windows on to the out image with green color.
     - Find the coordinates for the non-zero pixels which are within the rectangle and save them to a variable. This is done for both left and right side of the image.
     - Append these coordiantes to `left_lane_inds` and `right_lane_inds`.
-    - If the pixels found are greater than the miminum number of poxels passed to this function, then calculate the mean of the x coordinates of the found pixels and update the `leftx_current` and `rightx_current`.
+    - If the pixels found are greater than the miminum number of pixels passed to this function, then calculate the mean of the x coordinates of the found pixels and update the `leftx_current` and `rightx_current`.
     - With the help of `left_lane_inds` and `right_lane_inds` extract the left and right x, y coordinates and return with the output image.
 An example of the output image is as follows
 ![Lane Pixels](output_images/lane_pixels.png)
+
+#### `search_around_poly()`
+To find the lane pixels, when previous detected lane was True, the following steps are taken (coded in the function `search_around_poly()`) 
+1. From the binary warped image, find the non-zero pixels.
+2. Separate the non-zero pixels in two lists, one for the x-coordinate and the other for the y-coordinate.
+3. Find the coordinates of the non-zero pixels for the left lane which are between (polynomial - margin) and (polynomial + margin).
+4. Find the coordinates of the non-zero pixels for the left lane which are between (polynomial - margin) and (polynomial + margin).
+5. These coordiantes are returned to the main function for fitting of the polynomial, described in the next step.
 
 ### 5. Fitting a polynomial
 Fitting a polynomial to the pixels found in the above step is done in lines from 58 to 65 in the `./code/main.py` file. The fitting of polynomial is done using the numpy `polyfit()` function. The polynomial fitted is of 2nd order. Separate polynomials are generated for the left left lane and the right lane using the coordinates found for the lane pixels. An example of the fitted polynomial is following
@@ -148,15 +175,28 @@ Using the above defined parameters and the lane coordinates, the curvature is ca
 The offset of the car from the center of the image is calculated using the following formula
 `offset = (mid_point_image_width - mean_of_left_and_right_lane_x_direction*xm_per_pix`
 
-### 7. Plot the lane lines
+### 7. Sanity Check
+Next step in the detection of lane lines is to perform a sanity check. The sanity check function `sanity_check()` is coded in the file `./code/sanity_check.py`.
+The function takes the following arguments
+- The original Image
+- The lane class
+- A Transofrmation matrix
+
+In the funcition the following steps are performed
+1. Calculate the lane width by subtracting the average of the all x-coordinates of left lane from the average of all the x-coordinates of the right lane.
+2. If the calculated lane width is less than 700 pixels or greater than 850 pixels, this means that the detected lane is false. Hence the previous detected points are going to be used. Update the lane points in the lane class with the previously detected lane points. Also set the `detected` variable in the lane class to false.
+3. Else, update the previous lane points in the lane class with the current lane points, as the detected lane is correct and set the `detected` variable in the lane class to true.
+4. Call the `color_lane()` function to draw the lane lines on the image.
+
+### 8. Draw the lane lines
 Once all the calculations are done the lane lines need to be drawn on the image. This is done in the function `color_lane()` written in `./code/draw_lane_lines.py` file.
 The function takes the following inputs
 - Original Image
 - Warped binary image
 - X, Y points of the fitted polynomial for the left lane line
 - X, Y points of the fitted polynomial for the right lane line
-- Coordinates of the detected left lane pixel
-- Coordinates of the detected right lane pixel
+- The calculated curvature radius of the left lane
+- The calculated curvature radius of the right lane
 - The transformation matrix
 
 The function performs the following steps
@@ -167,20 +207,14 @@ The function performs the following steps
 5. Also the left and right lane pixels are colored using the coordinates passed on to this function. The left lane pixels are marked with red and right lane pixels are marked with green.
 6. Now that the lane line and the pixels are drawn on the canvas, the canvas is inverse transformed with the help of the transformation matrix passed to this function.
 7. The unwarped canvas is added to the original image using the `cv2.addWeighted()` function with `alphe = 1` and `gamma - 0.3`
-8. This is the returned from the function.
-
-The returned image looks as follows
-![Plotted lane lines](./output_images/unwarped_lane_lines.png)
-
-### 8. Add the curvature and offset to the image
-After plotting the lane lines and drawing a filled polygon, on the image the following text is added.
-- Curvature (Left Lane) 
-- Curvature (Right Lane)
-- Car Offset
-The values of the above mentioned is calculated in step 6 in this document. The text and the corrosponding values are added to the image using the `cv2.putText()` funciton. The function is used in the document `./code/main.py` in the lines from 91 to 113.
+8. To the new image with the lanes drawn, the following text is added. This is done using the `cv2.putText()` funciton in openCV
+    - Calculated cruvature of the left lane
+    - Calculated cruvature of the right lane
+    - The offset of the car from the center
+9. This image is then returned.
 
 Once the above mentioned steps are done the final image looks like the following image
-![Detected lane lines](output_images/detected_lane_lines.png)
+![Plotted lane lines](./output_images/unwarped_lane_lines.png)
 
 ## Pipeline (video)
 In order to detect lane lines, the same pipeline, as done for the image, is applied to every frame in the video.
