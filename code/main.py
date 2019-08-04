@@ -11,8 +11,30 @@ from threshold import *
 from histogram_lane_pixels import *
 from draw_lane_lines import *
 from progressbar import printProgressBar
+from sanity_check import *
 
-def find_lanes(raw_image, distortion_coeff):
+
+class Lane:
+    def __init__(self):
+        # Current lane detections
+        self.detected = False
+        self.left_poly_pts = []
+        self.right_poly_pts = []
+        self.left_poly = []
+        self.right_poly = []
+        self.left_curve_rad = 0.0
+        self.right_curve_rad = 0.0
+        self.offset = 0.0
+        self.detected_lane_img = []
+        self.warped_binary = []
+
+        # Will hole previous lane detection
+        self.left_poly_pts_previous = []
+        self.right_poly_pts_previous = []
+        self.left_poly_previous = []
+        self.right_poly_previous = []
+
+def find_lanes(raw_image, distortion_coeff, lane):
     '''
     This is the main function that will take the raw image as input and find the lane lines using the following pipeline
     1. Use the distortion coefficients and apply distortion correction
@@ -31,9 +53,9 @@ def find_lanes(raw_image, distortion_coeff):
                                 distortion_coeff["mtx"])
 
     # Threshold the binary image
-    thresholded_hsl_100 = threshold_hsl(undistorted, 100)  # HSL Thresholding
+    thresholded_hsl_100 = threshold_hsl(undistorted, 150)  # HSL Thresholding
     _, thresholded_sobel_and_mag = threshold_sobel(undistorted,
-                                                   sobel_kernel=15, 
+                                                   sobel_kernel=7, 
                                                    mag_thresh=(50, 190), 
                                                    grad_thresh=(0.7, 1.2))  # Thresholding with sobel and gradient
 
@@ -42,19 +64,35 @@ def find_lanes(raw_image, distortion_coeff):
     # Apply perspective transform
     src = np.array([[160, 700], [550, 450], [750, 450], [1200, 700]], dtype=np.float32) 
     dst = np.array([[100, 720], [100, 0], [1280, 0], [1280, 720]], dtype=np.float32)
-    warped, M, M_inv = perspective_transform(hsl_or_mag, src, dst)
+    lane.warped_binary, M, M_inv = perspective_transform(hsl_or_mag, src, dst)
 
     # Find Lane Pixels if thy are not already detected
-    leftx, lefty, rightx, righty, out_img = find_lane_pixels(warped, nwindows=10, margin=100, minpix=100) 
+    if lane.detected == False:
+        leftx, lefty, rightx, righty, out_img = find_lane_pixels(lane.warped_binary, 
+                                                                 nwindows=10, 
+                                                                 margin=100, 
+                                                                 minpix=100)
+        
+        # Fit a polynomial using the found pixels (2nd Order)
+        lane.left_poly = np.polyfit(lefty, leftx, 2)
+        lane.right_poly = np.polyfit(righty, rightx, 2)
+        lane.detected = True
+    else:
+        leftx, lefty, rightx, righty, out_img = search_around_poly(lane.warped_binary, 
+                                                                   lane.left_poly, 
+                                                                   lane.right_poly, 
+                                                                   50)
 
-    # Fit a polynomial using the found pixels (2nd Order)
-    left_fit = np.polyfit(lefty, leftx, 2)
-    right_fit = np.polyfit(righty, rightx, 2)
+        # Fit a polynomial using the found pixels (2nd Order)
+        lane.left_poly = np.polyfit(lefty, leftx, 2)
+        lane.right_poly = np.polyfit(righty, rightx, 2)
 
     # Generate x and y values
-    ploty = np.linspace(0, warped.shape[0]-1, warped.shape[0])
-    left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
-    right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
+    ploty = np.linspace(0, lane.warped_binary.shape[0]-1, lane.warped_binary.shape[0])
+    left_fitx = lane.left_poly[0]*ploty**2 + lane.left_poly[1]*ploty + lane.left_poly[2]
+    right_fitx = lane.right_poly[0]*ploty**2 + lane.right_poly[1]*ploty + lane.right_poly[2]
+    lane.left_poly_pts = (left_fitx, ploty)
+    lane.right_poly_pts = (right_fitx, ploty)
 
     # Conversion variables
     ym_per_pix = 30/720
@@ -62,48 +100,16 @@ def find_lanes(raw_image, distortion_coeff):
 
     # Find the curvature and position of the vehicle
     y_eval = np.max(ploty)
-    left_curverad = ((1 + (2*left_fit[0]*y_eval*ym_per_pix + left_fit[1])**2)**1.5)/np.absolute(2*left_fit[0])
-    right_curverad = ((1 + (2*right_fit[0]*y_eval*ym_per_pix + right_fit[1])**2)**1.5)/np.absolute(2*right_fit[0])
+    lane.left_curve_rad = ((1 + (2*lane.left_poly[0]*y_eval*ym_per_pix + lane.left_poly[1])**2)**1.5)/np.absolute(2*lane.left_poly[0])
+    lane.right_curve_rad = ((1 + (2*lane.left_poly[0]*y_eval*ym_per_pix + lane.left_poly[1])**2)**1.5)/np.absolute(2*lane.left_poly[0])
 
     # Find the offset
-    offset = (raw_image.shape[1]//2 - (left_fitx[-1] + right_fitx[-1])/2)*xm_per_pix
-    
+    lane.offset = (raw_image.shape[1]//2 - (left_fitx[-1] + right_fitx[-1])/2)*xm_per_pix
 
-    # Draw the lane lines on the raw image
-    with_lanes = color_lane(raw_image, 
-                            warped, 
-                            (left_fitx, ploty), 
-                            (right_fitx, ploty), 
-                            (leftx, lefty), 
-                            (rightx, righty), 
-                            M_inv)
+    # Sanity check
+    lane = sanity_check(frame, lane, M_inv)
 
-    # Write text on the image
-    with_lanes_text = with_lanes.copy()
-    cv2.putText(with_lanes_text, 
-                "Curvature (Left Lane): {:.2f} m".format(left_curverad), 
-                (10, 30), 
-                cv2.FONT_HERSHEY_SIMPLEX, 
-                1.0, 
-                (255,255,255), 
-                2)
-    cv2.putText(with_lanes_text, 
-                "Curvature (Right Lane): {:.2f} m".format(right_curverad),
-                (10, 60), 
-                cv2.FONT_HERSHEY_SIMPLEX, 
-                1., 
-                (255,255,255), 
-                2)
-    cv2.putText(with_lanes_text, 
-                    "Car Offset : {:.2f} m".format(offset),
-                    (10, 90), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 
-                    1., 
-                    (255,255,255), 
-                    2)
-
-    
-    return hsl_or_mag, warped, with_lanes_text
+    return lane
 
 if __name__ == "__main__":
     # Calibration of Camera
@@ -126,19 +132,29 @@ if __name__ == "__main__":
         calib_param["dist"] = dist
 
 
-    # Load Images
-    images = glob.glob("./test_images/*.jpg")
+    # # Load Images
+    # # images = glob.glob("./test_images/*.jpg")
+    # images = "./test_images/FromVideo.png"
 
-    # Find Lanes
-    image = cv2.imread(images[4])
-    thresholded, warped, with_lanes = find_lanes(image, calib_param)
+    # # Find Lanes
+    # lane = Lane()
+    # # image = cv2.imread(images[4])
+    # image = cv2.imread(images)
+    # image = cv2.resize(image, (1280, 720))
+    # lane.left_poly_pts, \
+    #     lane.right_poly_pts, \
+    #         (lane.left_curve_rad, lane.right_curve_rad), \
+    #             lane.offset, \
+    #                 M_inv, \
+    #                     lane.warped_binary = find_lanes(image, calib_param)
+
+    # # Sanity check
+    # sanity_check(lane, M_inv)
 
     # Show the images
-    # fig, ((plt1, plt2), (plt3, plt4)) = plt.subplots(2, 2, figsize=(20,10))
+    # fig, (plt1, plt2) = plt.subplots(1, 2, figsize=(20,10))
     # plt1.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    # plt2.imshow(thresholded, cmap="gray")
-    # plt3.imshow(warped, cmap="gray")
-    # plt4.imshow(cv2.cvtColor(with_lanes, cv2.COLOR_BGR2RGB))
+    # plt2.imshow(cv2.cvtColor(lane.detected_lane_img, cv2.COLOR_BGR2RGB))
     # plt.show()
 
     # On Video
@@ -158,27 +174,32 @@ if __name__ == "__main__":
                                 cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 
                                 fps, 
                                 (width,height))
+    
+    # Initialize lane class
+    lane = Lane()
     frame_number = 0
     while(video.isOpened()):
         # Read the frame from the video
         ret, frame = video.read()
-        
+
+        frame_number += 1
+        # if frame_number/fps < 35 or frame_number/fps > 45:
+        #     continue
         if ret == True:
             # Process the frame
-            thresholded, warped, with_lanes = find_lanes(frame, calib_param)
-            
-            # Display the resulting frame
-            cv2.imshow('Frame', with_lanes)
+            lane = find_lanes(frame, calib_param, lane)
+
+            # # Display the resulting frame
+            cv2.imshow('Frame', lane.detected_lane_img)
         
             # Press Q on keyboard to  exit
             if cv2.waitKey(25) & 0xFF == ord('q'):
                 break   
 
             # Write to the output file
-            out_video.write(with_lanes)
+            out_video.write(lane.detected_lane_img)
             
             # Print output numberf for user
-            frame_number += 1
             printProgressBar(frame_number, length, "Progress", length=50)
         
         # Break the loop
